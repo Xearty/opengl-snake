@@ -6,7 +6,7 @@
 
 bool compile_shader_file(int shader, const char* path)
 {
-	#define SHADER_SOURCE_BUFFER_SIZE 1000
+    #define SHADER_SOURCE_BUFFER_SIZE 1000
     char shader_source_buffer[SHADER_SOURCE_BUFFER_SIZE];
 
     int success = true;

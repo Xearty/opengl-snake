@@ -15,8 +15,6 @@ typedef int32_t bool32;
 typedef int32_t i32;
 typedef uint32_t u32;
 
-#define WINDOW_WIDTH 800
-#define WINDOW_HEIGHT 800
 #define CELL_COUNT 30
 
 #define ARR_SIZE(arr) (sizeof(arr) / sizeof(*arr))
@@ -65,6 +63,7 @@ struct ObjectData {
 struct {
     bool32 pause;
     bool32 changed_direction_this_frame;
+    glm::ivec2 window_size;
     glm::ivec2 food_pos;
     glm::ivec2 initial_positions[3];
     struct {
@@ -74,6 +73,8 @@ struct {
 } g;
 
 void init_global_state() {
+    g.window_size = glm::ivec2(640, 480);
+
     g.pause = false;
     g.changed_direction_this_frame = false;
     g.food_pos = glm::ivec2(6, 5);
@@ -109,8 +110,6 @@ void wait_until_next_frame(FramerateData *fr) {
     if (fr->time_slept < 0) {
         fr->time_slept = 0;
     }
-
-    // pri32f("TIME TAKEN: %d\n", time_taken + fr->time_slept);
 
     Sleep(fr->time_slept);
 }
@@ -236,15 +235,16 @@ void update_snake(SnakeData *snake) {
     }
 
     glm::ivec2 *head_pos = &snake->tail[0].pos;
-    if (head_pos->x < 0)               head_pos->x = CELL_COUNT - 1;
-    if (head_pos->y < 0)               head_pos->y = CELL_COUNT - 1;
+    if (head_pos->x < 0)              head_pos->x = CELL_COUNT - 1;
+    if (head_pos->y < 0)              head_pos->y = CELL_COUNT - 1;
     if (head_pos->x > CELL_COUNT - 1) head_pos->x = 0;
     if (head_pos->y > CELL_COUNT - 1) head_pos->y = 0;
 
     if (*head_pos == g.food_pos) {
-        bool32 overlaps = false;
+        bool32 overlaps;
         glm::ivec2 new_food_pos;
         do {
+            overlaps = false;
             new_food_pos = glm::ivec2(rand() % CELL_COUNT, rand() % CELL_COUNT);
 
             for (const auto& tail_piece : snake->tail) {
@@ -272,36 +272,60 @@ i32 main() {
     init_global_state();
     srand(time(0));
     glfwInit();
-    
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
-    GLFWwindow* window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "OpenGL Snake Game", 0, 0);
+    GLFWmonitor *monitor = glfwGetPrimaryMonitor();
+    const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+
+    glfwWindowHint(GLFW_RED_BITS, mode->redBits);
+    glfwWindowHint(GLFW_GREEN_BITS, mode->greenBits);
+    glfwWindowHint(GLFW_BLUE_BITS, mode->blueBits);
+    glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
+
+    g.window_size = glm::ivec2(mode->width, mode->height);
+    
+    GLFWwindow* window = glfwCreateWindow(g.window_size.x, g.window_size.y, "OpenGL Snake Game", monitor, NULL);
     glfwMakeContextCurrent(window);
 
     gladLoadGL();
-    glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+    const i32 dim_diff = g.window_size.x - g.window_size.y;
+    glViewport(dim_diff / 2, 0, g.window_size.y, g.window_size.y);
 
     glfwSetKeyCallback(window, key_callback);
 
-    float cell_width = (float)WINDOW_WIDTH / CELL_COUNT;
-    float cell_height = (float)WINDOW_HEIGHT / CELL_COUNT;
+    float cell_width = (float)g.window_size.x / CELL_COUNT;
+    float cell_height = (float)g.window_size.y / CELL_COUNT;
 
     ObjectData grid;
     {
-        const i32 grid_vertices_count = (CELL_COUNT - 1) * 4;
+        const i32 grid_vertices_count = (CELL_COUNT - 1) * 4 + 8;
         Vertex grid_vertices[grid_vertices_count];
 
         for (size_t i = 0; i < CELL_COUNT - 1; i++) {
-            float x = cell_width * (i + 1) / (float)WINDOW_WIDTH * 2 - 1;
-            float y = cell_height * (i + 1) / (float)WINDOW_HEIGHT * 2 - 1;
+            float x = cell_width * (i + 1) / (float)g.window_size.x * 2 - 1;
+            float y = cell_height * (i + 1) / (float)g.window_size.y * 2 - 1;
             
             grid_vertices[i * 4 + 0] = { glm::vec2(x, 1) };
             grid_vertices[i * 4 + 1] = { glm::vec2(x, -1) };
             grid_vertices[i * 4 + 2] = { glm::vec2(-1, y) };
             grid_vertices[i * 4 + 3] = { glm::vec2(1, y) };
+        }
+
+        float limit = 0.999f;
+        glm::vec2 top_left = glm::vec2(-limit, limit);
+        glm::vec2 top_right = glm::vec2(limit, limit);
+        glm::vec2 bottom_left = glm::vec2(-limit, -limit);
+        glm::vec2 bottom_right = glm::vec2(limit, -limit);
+
+        {
+            i32 offset = 1;
+            #define SET_BORDER_VERTEX(from, to) \
+                grid_vertices[grid_vertices_count - offset++] = {(from)}; \
+                grid_vertices[grid_vertices_count - offset++] = {(to)}
+
+            SET_BORDER_VERTEX(top_left, top_right);
+            SET_BORDER_VERTEX(top_right, bottom_right);
+            SET_BORDER_VERTEX(bottom_right, bottom_left);
+            SET_BORDER_VERTEX(bottom_left, top_left);
         }
 
         grid.vertex_count = grid_vertices_count;
@@ -335,8 +359,8 @@ i32 main() {
         glDeleteShader(grid_fragment_shader);
     } // grid configuration
 
-    float normalized_cell_width = cell_width / (float)WINDOW_WIDTH * 2.0f;
-    float normalized_cell_height = cell_height / (float)WINDOW_HEIGHT * 2.0f;
+    float normalized_cell_width = cell_width / (float)g.window_size.x * 2.0f;
+    float normalized_cell_height = cell_height / (float)g.window_size.y * 2.0f;
 
     ObjectData quad;
     {
@@ -409,7 +433,7 @@ i32 main() {
             continue;
         }
 
-        glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         update_snake(&snake);
