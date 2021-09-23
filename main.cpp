@@ -15,7 +15,7 @@ typedef int32_t bool32;
 typedef int32_t i32;
 typedef uint32_t u32;
 
-#define CELL_COUNT 30
+#define CELL_COUNT 20
 
 #define ARR_SIZE(arr) (sizeof(arr) / sizeof(*arr))
 #define RGB(r, g, b) (float)(r)/255, (float)(g)/255, (float)(b)/255
@@ -63,6 +63,7 @@ struct ObjectData {
 struct {
     bool32 pause;
     bool32 changed_direction_this_frame;
+    i32 cells_left;
     glm::ivec2 window_size;
     glm::ivec2 food_pos;
     glm::ivec2 initial_positions[3];
@@ -75,9 +76,7 @@ struct {
 void init_global_state() {
     g.window_size = glm::ivec2(640, 480);
 
-    g.pause = false;
     g.changed_direction_this_frame = false;
-    g.food_pos = glm::ivec2(6, 5);
     g.turns_queue.size = 0;
 
     memset(g.turns_queue.data, 0, sizeof(g.turns_queue.data));
@@ -88,7 +87,27 @@ void init_global_state() {
     g.initial_positions[2] = glm::ivec2(1, 1);
 }
 
+glm::ivec2 gen_random_food_pos(SnakeData *snake) {
+    bool32 overlaps;
+    glm::ivec2 new_food_pos;
+    do {
+        overlaps = false;
+        new_food_pos = glm::ivec2(rand() % CELL_COUNT, rand() % CELL_COUNT);
+
+        for (const auto& tail_piece : snake->tail) {
+            if (tail_piece.pos == new_food_pos) {
+                overlaps = true;
+                break;
+            }
+        }
+    } while (overlaps);
+
+    return new_food_pos;
+}
+
 void restart_game(SnakeData *snake) {
+    g.pause = false;
+    g.cells_left = CELL_COUNT * CELL_COUNT - ARR_SIZE(g.initial_positions);
     snake->length = ARR_SIZE(g.initial_positions);
     snake->tail.clear();
 
@@ -99,6 +118,8 @@ void restart_game(SnakeData *snake) {
     snake->dir = Right;
     snake->should_grow = false;
     snake->velocity = glm::ivec2(1, 0);
+
+    g.food_pos = gen_random_food_pos(snake);
 }
 
 void wait_until_next_frame(FramerateData *fr) {
@@ -167,35 +188,45 @@ void key_callback(GLFWwindow *window, i32 key, i32 scancode, i32 action, i32 mod
         return;
     }
 
-    if (key == GLFW_KEY_P) {
-        g.pause = !g.pause;
-    }
-
-    if (key == GLFW_KEY_ESCAPE) {
-        glfwSetWindowShouldClose(window, GL_TRUE);
-    }
-
     SnakeData *snake = (SnakeData *)glfwGetWindowUserPointer(window);
 
-    if (key == GLFW_KEY_W) {
-        snake->should_grow = true;
-    }
-    
-    if (key >= GLFW_KEY_RIGHT && key <= GLFW_KEY_UP) {
-        i32 direction;
-        switch (key) {
-            #define MAP_DIRECTION(key, dir) case key: direction = dir; break
-            MAP_DIRECTION(GLFW_KEY_UP, Up);
-            MAP_DIRECTION(GLFW_KEY_RIGHT, Right);
-            MAP_DIRECTION(GLFW_KEY_DOWN, Down);
-            MAP_DIRECTION(GLFW_KEY_LEFT, Left);
-        }
+    switch (key) {
+        case GLFW_KEY_P: {
+            g.pause = !g.pause;
+        } break;
 
-        size_t turns_queue_capacity = ARR_SIZE(g.turns_queue.data);
+        case GLFW_KEY_ESCAPE: {
+            glfwSetWindowShouldClose(window, GL_TRUE);
+        } break;
 
-        if (g.turns_queue.size < turns_queue_capacity) {
-            g.turns_queue.data[g.turns_queue.size++] = direction;
-        }
+        case GLFW_KEY_W: {
+            snake->should_grow = true;
+        } break;
+
+        case GLFW_KEY_R: {
+            restart_game(snake);
+        } break;
+
+        //case GLFW_KEY_RIGHT ... GLFW_KEY_UP:
+        case GLFW_KEY_UP:
+        case GLFW_KEY_RIGHT:
+        case GLFW_KEY_DOWN:
+        case GLFW_KEY_LEFT: {
+            i32 direction;
+            switch (key) {
+                #define MAP_DIRECTION(key, dir) case key: direction = dir; break
+                MAP_DIRECTION(GLFW_KEY_UP, Up);
+                MAP_DIRECTION(GLFW_KEY_RIGHT, Right);
+                MAP_DIRECTION(GLFW_KEY_DOWN, Down);
+                MAP_DIRECTION(GLFW_KEY_LEFT, Left);
+            }
+
+            size_t turns_queue_capacity = ARR_SIZE(g.turns_queue.data);
+
+            if (g.turns_queue.size < turns_queue_capacity) {
+                g.turns_queue.data[g.turns_queue.size++] = direction;
+            }
+        } break;
     }
 }
 
@@ -230,6 +261,11 @@ void update_snake(SnakeData *snake) {
 
     if (snake->should_grow) {
         snake->should_grow = false;
+
+        if (--g.cells_left <= 0) {
+            g.pause = true;
+            return;
+        }
     } else {
         snake->tail.pop_back();
     }
@@ -241,21 +277,7 @@ void update_snake(SnakeData *snake) {
     if (head_pos->y > CELL_COUNT - 1) head_pos->y = 0;
 
     if (*head_pos == g.food_pos) {
-        bool32 overlaps;
-        glm::ivec2 new_food_pos;
-        do {
-            overlaps = false;
-            new_food_pos = glm::ivec2(rand() % CELL_COUNT, rand() % CELL_COUNT);
-
-            for (const auto& tail_piece : snake->tail) {
-                if (tail_piece.pos == new_food_pos) {
-                    overlaps = true;
-                    break;
-                }
-            }
-        } while (overlaps);
-
-        g.food_pos = new_food_pos;
+        g.food_pos = gen_random_food_pos(snake);
         snake->should_grow = true;
     }
 
@@ -422,7 +444,7 @@ i32 main() {
     restart_game(&snake);
     glfwSetWindowUserPointer(window, &snake);
 
-    FramerateData framerate(20);
+    FramerateData framerate(15);
 
     while (!glfwWindowShouldClose(window)) {
         g.changed_direction_this_frame = false;
