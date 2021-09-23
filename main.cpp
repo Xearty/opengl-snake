@@ -207,7 +207,6 @@ void key_callback(GLFWwindow *window, i32 key, i32 scancode, i32 action, i32 mod
             restart_game(snake);
         } break;
 
-        //case GLFW_KEY_RIGHT ... GLFW_KEY_UP:
         case GLFW_KEY_UP:
         case GLFW_KEY_RIGHT:
         case GLFW_KEY_DOWN:
