@@ -3,7 +3,7 @@
 layout (location = 0) in vec2 position;
 
 uniform vec2 quad_size;
-uniform vec2 offset;
+uniform ivec2 offset;
 
 void main() {
 	gl_Position = vec4(position.x + quad_size.x / 2 + offset.x * quad_size.x - 1,

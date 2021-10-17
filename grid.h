@@ -4,9 +4,7 @@
 #include "typedefs.h"
 #include "util.h"
 
-#include <glm/glm.hpp>
-
-ObjectData configure_grid(glm::ivec2 window_size) {
+ObjectData configure_grid(Vec2i window_size) {
     ObjectData grid;
 
     float cell_width = (float)window_size.x / CELL_COUNT;
@@ -19,17 +17,17 @@ ObjectData configure_grid(glm::ivec2 window_size) {
         float x = cell_width * (i + 1) / (float)window_size.x * 2 - 1;
         float y = cell_height * (i + 1) / (float)window_size.y * 2 - 1;
 
-        grid_vertices[i * 4 + 0] = { glm::vec2(x, 1) };
-        grid_vertices[i * 4 + 1] = { glm::vec2(x, -1) };
-        grid_vertices[i * 4 + 2] = { glm::vec2(-1, y) };
-        grid_vertices[i * 4 + 3] = { glm::vec2(1, y) };
+        grid_vertices[i * 4 + 0] = { {  x,  1 } };
+        grid_vertices[i * 4 + 1] = { {  x, -1 } };
+        grid_vertices[i * 4 + 2] = { { -1,  y } };
+        grid_vertices[i * 4 + 3] = { {  1,  y } };
     }
 
     float limit = 0.999f;
-    glm::vec2 top_left = glm::vec2(-limit, limit);
-    glm::vec2 top_right = glm::vec2(limit, limit);
-    glm::vec2 bottom_left = glm::vec2(-limit, -limit);
-    glm::vec2 bottom_right = glm::vec2(limit, -limit);
+    Vec2f top_left     = { -limit,  limit };
+    Vec2f top_right    = {  limit,  limit };
+    Vec2f bottom_left  = { -limit, -limit };
+    Vec2f bottom_right = {  limit, -limit };
 
     {
         i32 offset = 1;

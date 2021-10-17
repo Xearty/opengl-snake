@@ -4,9 +4,7 @@
 #include "typedefs.h"
 #include "util.h"
 
-#include <glm/glm.hpp>
-
-ObjectData configure_quad(glm::ivec2 window_size) {
+ObjectData configure_quad(Vec2i window_size) {
     ObjectData quad;
 
     float cell_width = (float)window_size.x / CELL_COUNT;
