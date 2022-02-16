@@ -2,29 +2,15 @@
 #define _MY_TYPES_H_
 
 #include <glad/glad.h>
+#include <glm/glm.hpp>
 #include <stdint.h>
 
 typedef int32_t bool32;
 typedef int32_t i32;
 typedef uint32_t u32;
 
-template <typename T>
-struct Vec {
-    T x, y;
-    Vec<T> operator+(Vec<T> &other) {
-        return { x + other.x, y + other.y };
-    }
-
-    bool32 operator==(Vec<T> &other) {
-        return (x == other.x && y == other.y);
-    }
-};
-
-typedef Vec<i32> Vec2i;
-typedef Vec<float> Vec2f;
-
 struct Vertex {
-    Vec2f pos;
+    glm::vec2 pos;
 };
 
 struct ObjectData {

@@ -4,12 +4,15 @@
 #include "typedefs.h"
 #include "util.h"
 
-ObjectData configure_grid(Vec2i window_size) {
+#include <glm/glm.hpp>
+
+ObjectData configure_grid(glm::ivec2 window_size) {
     ObjectData grid;
 
     float cell_width = (float)window_size.x / CELL_COUNT;
     float cell_height = (float)window_size.y / CELL_COUNT;
 
+    /*
     const i32 grid_vertices_count = (CELL_COUNT - 1) * 4 + 8;
     Vertex grid_vertices[grid_vertices_count];
 
@@ -22,18 +25,30 @@ ObjectData configure_grid(Vec2i window_size) {
         grid_vertices[i * 4 + 2] = { { -1,  y } };
         grid_vertices[i * 4 + 3] = { {  1,  y } };
     }
+    */
+    
+    const i32 grid_vertices_count = 8;
+    Vertex grid_vertices[grid_vertices_count];
+    
 
     float limit = 0.999f;
-    Vec2f top_left     = { -limit,  limit };
-    Vec2f top_right    = {  limit,  limit };
-    Vec2f bottom_left  = { -limit, -limit };
-    Vec2f bottom_right = {  limit, -limit };
+    glm::vec2 top_left     = { -limit,  limit };
+    glm::vec2 top_right    = {  limit,  limit };
+    glm::vec2 bottom_left  = { -limit, -limit };
+    glm::vec2 bottom_right = {  limit, -limit };
 
     {
+        /*
         i32 offset = 1;
         #define SET_BORDER_VERTICES(from, to) \
             grid_vertices[grid_vertices_count - offset++] = {(from)}; \
             grid_vertices[grid_vertices_count - offset++] = {(to)}
+        */
+
+        i32 offset = 0;
+        #define SET_BORDER_VERTICES(from, to) \
+            grid_vertices[offset++] = {(from)}; \
+            grid_vertices[offset++] = {(to)}
 
         SET_BORDER_VERTICES(top_left, top_right);
         SET_BORDER_VERTICES(top_right, bottom_right);

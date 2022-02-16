@@ -11,9 +11,7 @@ bool compile_shader_file(int shader, const char* path)
 
     int success = true;
 
-    FILE *source_file = NULL;
-    fopen_s(&source_file, path, "r");
-
+    FILE *source_file = fopen(path, "r");
     if (source_file)
     {
         size_t length = fread(shader_source_buffer, sizeof(char), SHADER_SOURCE_BUFFER_SIZE - 1, source_file);

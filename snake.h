@@ -2,18 +2,21 @@
 #define _SNAKE_H_
 
 #include "typedefs.h"
-#include "quad.h"
+#include "cell.h"
 
 #include <glad/glad.h>
+#include <glm/glm.hpp>
 #include <deque>
+#include <stdlib.h>
+#include <string.h>
 
 struct TailPiece {
-    Vec2i pos;
+    glm::ivec2 pos;
 };
 
 struct SnakeData {
     std::deque<TailPiece> tail;
-    Vec2i velocity;
+    glm::ivec2 velocity;
     bool32 should_grow;
 };
 
@@ -29,14 +32,14 @@ struct GameState {
     bool32 paused;
     bool32 is_over;
     i32 cells_left;
-    Vec2i food_pos;
+    glm::ivec2 food_pos;
 };
 
-static void map_set(i32 map[CELL_COUNT][CELL_COUNT], Vec2i pos, i32 value) {
+static void map_set(i32 map[CELL_COUNT][CELL_COUNT], glm::ivec2 pos, i32 value) {
     map[pos.y][pos.x] = value;
 }
 
-static i32 map_at(i32 map[CELL_COUNT][CELL_COUNT], Vec2i pos) {
+static i32 map_at(i32 map[CELL_COUNT][CELL_COUNT], glm::ivec2 pos) {
     return map[pos.y][pos.x];
 }
 
@@ -60,25 +63,25 @@ static i32 pop_queue(TurnsQueue *queue) {
     return result;
 }
 
-static void push_new_head(std::deque<TailPiece> *tail, i32 map[CELL_COUNT][CELL_COUNT], Vec2i pos) {
+static void push_new_head(std::deque<TailPiece> *tail, i32 map[CELL_COUNT][CELL_COUNT], glm::ivec2 pos) {
     tail->push_front({ pos });
     map_set(map, pos, 1);
 }
 
 static void pop_tail(std::deque<TailPiece> *tail, i32 map[CELL_COUNT][CELL_COUNT]) {
-    Vec2i tail_tip_pos = tail->back().pos;
+    glm::ivec2 tail_tip_pos = tail->back().pos;
     tail->pop_back();
     map_set(map, tail_tip_pos, 0);
 }
 
-static bool32 can_change_direction(Vec2i old_velocity, Vec2i new_velocity) {
-    Vec2i sum = old_velocity + new_velocity;
+static bool32 can_change_direction(glm::ivec2 old_velocity, glm::ivec2 new_velocity) {
+    glm::ivec2 sum = old_velocity + new_velocity;
     return sum.x && sum.y;
 }
 
-static Vec2i gen_random_food_pos(i32 map[CELL_COUNT][CELL_COUNT]) {
+static glm::ivec2 gen_random_food_pos(i32 map[CELL_COUNT][CELL_COUNT]) {
     bool32 overlaps;
-    Vec2i new_food_pos;
+    glm::ivec2 new_food_pos;
 
     do {
         overlaps = false;
@@ -93,7 +96,7 @@ static void turn_snake(SnakeData *snake, TurnsQueue *queue) {
     i32 new_dir = pop_queue(queue);
 
     if (new_dir) {
-        Vec2i new_velocity;
+        glm::ivec2 new_velocity;
         switch (new_dir) {
             #define KEY_TO_VELOCITY(key, x, y) case key: new_velocity = {x, y}; break
             KEY_TO_VELOCITY(GLFW_KEY_UP, 0, -1);
@@ -109,7 +112,7 @@ static void turn_snake(SnakeData *snake, TurnsQueue *queue) {
 }
 
 void restart_game(GameState *game) {
-    const Vec2i initial_positions[] = {
+    const glm::ivec2 initial_positions[] = {
         {3, 1}, {2, 1}, {1, 1}
     };
     
@@ -147,7 +150,7 @@ void update_snake(GameState *game) {
         pop_tail(&snake->tail, game->map);
     }
 
-    Vec2i new_head_pos = snake->tail.front().pos + snake->velocity;
+    glm::ivec2 new_head_pos = snake->tail.front().pos + snake->velocity;
 
     if (new_head_pos.x < 0)              new_head_pos.x = CELL_COUNT - 1;
     if (new_head_pos.y < 0)              new_head_pos.y = CELL_COUNT - 1;
@@ -166,32 +169,38 @@ void update_snake(GameState *game) {
     }
 }
 
-void render_cell(ObjectData *quad, i32 x, i32 y) {
-    glUniform2i(glGetUniformLocation(quad->shader, "offset"), x, y);
+void render_cell(ObjectData *cell, i32 x, i32 y) {
+    glUseProgram(cell->shader);
+    glUniform2i(glGetUniformLocation(cell->shader, "offset"), x, y);
 
-    glBindVertexArray(quad->vao);
-    glDrawElements(quad->primitive, quad->vertex_count, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(cell->vao);
+    glDrawElements(cell->primitive, cell->vertex_count, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
 }
 
-void render_food(ObjectData *quad, Vec2i food_pos) {
-    glUseProgram(quad->shader);
-    glUniform3f(glGetUniformLocation(quad->shader, "color"), 1.0f, 1.0f, 0.0f);
-    render_cell(quad, food_pos.x, food_pos.y);
+void render_food(ObjectData *cell, glm::ivec2 food_pos) {
+    glUseProgram(cell->shader);
+    glUniform3f(glGetUniformLocation(cell->shader, "color"), 1.0f, 1.0f, 0.0f);
+    render_cell(cell, food_pos.x, food_pos.y);
 }
 
-void render_snake(std::deque<TailPiece> *tail, ObjectData *quad) {
-    glUseProgram(quad->shader);
-    glUniform3f(glGetUniformLocation(quad->shader, "color"), 235.0f / 255, 221.0f / 255, 202.0f / 255);
+void render_snake(std::deque<TailPiece> *tail, ObjectData *cell, ObjectData *bridge, glm::vec2 cell_size) {
+    glUseProgram(cell->shader);
     auto head = tail->begin();
-    render_cell(quad, head->pos.x, head->pos.y);
+    glUniform3f(glGetUniformLocation(cell->shader, "color"), 1.0f, 0.0f, 0.0f);
+    render_cell(cell, head->pos.x, head->pos.y);
+    glUniform3f(glGetUniformLocation(cell->shader, "color"), 0.7f, 0.0f, 0.0f);
+    render_bridge(bridge, cell_size, head->pos, (head + 1)->pos - head->pos);
 
-    glUniform3f(glGetUniformLocation(quad->shader, "color"), 1.0f, 0.0f, 0.0f);
-    for (auto it = head + 1; it != tail->end(); ++it) {
-        render_cell(quad, it->pos.x, it->pos.y);
+    for (auto it = tail->begin() + 1; it != tail->end() - 1; ++it) {
+        render_cell(cell, it->pos.x, it->pos.y);
+        render_bridge(bridge, cell_size, it->pos, (it - 1)->pos - it->pos);
+        render_bridge(bridge, cell_size, it->pos, (it + 1)->pos - it->pos);
     }
 
-    glUseProgram(0);
+    auto back = &tail->back();
+    render_cell(cell, back->pos.x, back->pos.y);
+    render_bridge(bridge, cell_size, back->pos, (back - 1)->pos - back->pos);
 }
 
 #endif
